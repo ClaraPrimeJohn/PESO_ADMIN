@@ -116,7 +116,7 @@ function AdminEmployerLogin({ onLogin }) {
                             <button type="submit" className="w-3/4 max-w-[200px] bg-blue-500 text-white px-4 py-3 rounded-lg font-semibold hover:bg-gray-700 transition flex justify-center items-center" disabled={loading}>
                                 {loading ? <ClipLoader size={20} color="#ffffff" /> : "Login"}
                             </button>
-                            <Link to ="/employer/forgot-password" className="text-sm text-blue-500 hover:underline whitespace-nowrap">Forgot Password?</Link>
+                            <a href="/employer/forgot-password" className="text-sm text-blue-500 hover:underline whitespace-nowrap">Forgot Password?</a>
                         </div>
                         
                     </form>
