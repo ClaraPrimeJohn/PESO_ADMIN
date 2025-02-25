@@ -16,6 +16,8 @@ const TableAnnouncements = () => {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [announcementToDelete, setAnnouncementToDelete] = useState(null);
     const dropdownRef = useRef(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [announcementsPerPage] = useState(10);
     const modalRef = useRef(null);
 
     useEffect(() => {
@@ -41,10 +43,23 @@ const TableAnnouncements = () => {
         fetchAnnouncements();
     }, []);
 
-
+ 
     const filteredAnnouncements = announcements.filter((announcement) =>
         announcement.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Pagination logic
+    const indexOfLastAnnouncement = currentPage * announcementsPerPage;
+    const indexOfFirstAnnouncement = indexOfLastAnnouncement - announcementsPerPage;
+    const currentAnnouncements = filteredAnnouncements.slice(indexOfFirstAnnouncement, indexOfLastAnnouncement);
+    const totalPages = Math.ceil(filteredAnnouncements.length / announcementsPerPage);
+
+    const paginate = (pageNumber) => {
+        if (pageNumber > 0 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+            setSelectedAnnouncement(null);
+        }
+    };
 
     const handleActionClick = (announcement) => {
         setSelectedAnnouncement(announcement);
@@ -80,7 +95,6 @@ const TableAnnouncements = () => {
             error: "Failed to delete!",
         });
     };
-
 
     const cancelDelete = () => {
         setIsDeleteConfirmOpen(false);
@@ -123,7 +137,6 @@ const TableAnnouncements = () => {
         });
     };
 
-
     const handleExportPDF = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -148,7 +161,6 @@ const TableAnnouncements = () => {
             ann.date ? ann.date.toDate().toLocaleDateString() : 'N/A'
         ]);
 
-
         doc.autoTable({
             head: headers,
             body: tableData,
@@ -171,7 +183,6 @@ const TableAnnouncements = () => {
             margin: { left: marginX, right: marginX, top: 35 }
         });
 
-
         window.open(doc.output('bloburl'), '_blank');
     };
 
@@ -188,7 +199,6 @@ const TableAnnouncements = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isDeleteConfirmOpen]);
-
 
     return (
         <div className="py-10 px-4 sm:px-6 lg:px-10">
@@ -228,7 +238,7 @@ const TableAnnouncements = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAnnouncements.map((announcement) => (
+                            {currentAnnouncements.map((announcement) => (
                                 <tr key={announcement.id} className="border-b border-gray-200">
                                     <td className="px-3 py-4 text-sm text-gray-700">{announcement.title}</td>
                                     <td className="px-3 py-4 text-sm text-gray-700">{announcement.description}</td>
@@ -266,6 +276,64 @@ const TableAnnouncements = () => {
                             ))}
                         </tbody>
                     </table>
+                    <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                        <div className="flex-1 flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Showing <span className="font-medium">{indexOfFirstAnnouncement + 1}</span> to{" "}
+                                    <span className="font-medium">
+                                        {Math.min(indexOfLastAnnouncement, filteredAnnouncements.length)}
+                                    </span>{" "}
+                                    of <span className="font-medium">{filteredAnnouncements.length}</span> results
+                                </p>
+                            </div>
+                            <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button
+                                    onClick={() => paginate(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-xs font-medium ${
+                                        currentPage === 1 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => paginate(i + 1)}
+                                        className={`relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-large ${
+                                            currentPage === i + 1
+                                            ? 'z-10 bg-blue-50 border-blue text-blue'
+                                            : 'bg-white text-gray-500 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ))}
+                                
+                                <button
+                                    onClick={() => paginate(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-xs font-medium ${
+                                        currentPage === totalPages 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -302,7 +370,6 @@ const TableAnnouncements = () => {
                         </div>
                     </div>
                 </div>
-
             )}
         </div>
     );

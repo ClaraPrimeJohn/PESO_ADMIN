@@ -15,6 +15,8 @@ const ManageAccountsTable = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState(null);
     const dropdownRef = useRef(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [accountsPerPage] = useState(10);
 
     useEffect(() => {
         const fetchEmployers = async () => {
@@ -38,6 +40,19 @@ const ManageAccountsTable = () => {
         account.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         account.contact_person_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Pagination logic
+    const indexOfLastAccount = currentPage * accountsPerPage;
+    const indexOfFirstAccount = indexOfLastAccount - accountsPerPage;
+    const currentAccounts = filteredAccounts.slice(indexOfFirstAccount, indexOfLastAccount);
+    const totalPages = Math.ceil(filteredAccounts.length / accountsPerPage);
+
+    const paginate = (pageNumber) => {
+        if (pageNumber > 0 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+            setSelectedAccount(null);
+        }
+    };
 
     const handleActionClick = (account) => {
         setSelectedAccount(selectedAccount && selectedAccount.id === account.id ? null : account);
@@ -126,9 +141,7 @@ const ManageAccountsTable = () => {
     const truncateText = (text, maxLength = 30) => {
         if (!text) return '';
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    };
-
-    const handleExportPDF = () => {
+    };const handleExportPDF = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginX = 10;
@@ -173,7 +186,6 @@ const ManageAccountsTable = () => {
             margin: { left: marginX, right: marginX, top: 35 }
         });
 
-
         window.open(doc.output('bloburl'), '_blank');
     };
 
@@ -189,6 +201,11 @@ const ManageAccountsTable = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Reset to first page when search term changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     return (
         <div className="py-10 px-4 sm:px-6 lg:px-10">
@@ -209,7 +226,6 @@ const ManageAccountsTable = () => {
                         >
                             Export PDF
                         </button>
-
                     </div>
                 </div>
             </div>
@@ -230,7 +246,7 @@ const ManageAccountsTable = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAccounts.map((account, index) => (
+                            {currentAccounts.map((account, index) => (
                                 <tr key={account.id || index} className="border-b border-gray-200 hover:bg-gray-50">
                                     <td className="px-3 py-4 text-sm text-gray-700">{account.companyName}</td>
                                     <td className="px-3 py-4 text-sm text-gray-700">{account.email}</td>
@@ -293,21 +309,80 @@ const ManageAccountsTable = () => {
                             ))}
                         </tbody>
                     </table>
+                    
+                    <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                        <div className="flex-1 flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Showing <span className="font-medium,">{indexOfFirstAccount + 1}</span> to{" "}
+                                    <span className="font-medium">
+                                        {Math.min(indexOfLastAccount, filteredAccounts.length)}
+                                    </span>{" "}
+                                    of <span className="font-medium">{filteredAccounts.length}</span> results
+                                </p>
+                            </div>
+                            <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button
+                                    onClick={() => paginate(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-xs font-medium ${
+                                        currentPage === 1 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => paginate(i + 1)}
+                                        className={`relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-large ${
+                                            currentPage === i + 1
+                                            ? 'z-10 bg-blue-50 border-blue text-blue'
+                                            : 'bg-white text-gray-500 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ))}
+                                
+                                <button
+                                    onClick={() => paginate(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-xs font-medium ${
+                                        currentPage === totalPages 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Delete Confirmation Modal */}
             {isDeleteConfirmOpen && (
                 <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-96 sm:w-80 md:w-96 lg:w-1/5">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-96 lg:w-1/5">
                         <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
                             Are you sure you want to delete?
                         </h3>
                         <div className="flex justify-center space-x-4">
-                            <button className="bg-red-600 text-white px-4 py-2 rounded-md text-base w-full sm:w-auto" onClick={confirmDelete}>
+                            <button className="bg-red-600 text-white px-4 py-2 rounded-md text-base w-full" onClick={confirmDelete}>
                                 Yes, Delete
                             </button>
-                            <button className="bg-gray-300 text-black px-4 py-2 rounded-md text-base w-full sm:w-auto" onClick={cancelDelete}>
+                            <button className="bg-gray-300 text-black px-4 py-2 rounded-md text-base w-full" onClick={cancelDelete}>
                                 Cancel
                             </button>
                         </div>
