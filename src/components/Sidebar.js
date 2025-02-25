@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from "react-hot-toast";
 import { SiAwssecretsmanager } from "react-icons/si";
 import {
   CiViewList,
@@ -31,12 +30,7 @@ const Sidebar = () => {
     navigate('/');
     setTimeout(() => {
       toast.success('Logged out!', {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: false,
+        duration: 2000,
       });
     }, 500);
   };

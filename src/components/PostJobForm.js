@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { CiInboxOut } from "react-icons/ci";
 import { ClipLoader } from "react-spinners";
 
@@ -47,12 +47,7 @@ function PostJobForm() {
 
     if (!company || !jobTitle || !jobDescription || !location || !logo) {
       toast.error("All fields are required, including a logo!", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
       return;
     }
@@ -84,8 +79,8 @@ function PostJobForm() {
         job_category: jobCategory,
         job_type: jobType,
         location,
-        salary_min: salaryMin,
-        salary_max: salaryMax,
+        salary_min: Number(salaryMin),
+        salary_max: Number(salaryMax),
         skills,
         experience,
         logo: logoUrl,
@@ -93,12 +88,7 @@ function PostJobForm() {
       });
 
       toast.success("Job posted!", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
 
       setCompany("");
@@ -117,12 +107,7 @@ function PostJobForm() {
     } catch (error) {
       console.error("Error posting job:", error);
       toast.error("Failed to post the job.", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
     } finally {
       setLoading(false);
@@ -231,7 +216,7 @@ function PostJobForm() {
                 type="number"
                 id="salary-min"
                 value={salaryMin}
-                onChange={(e) => setSalaryMin(e.target.value)}
+                onChange={(e) => setSalaryMin(Number(e.target.value))}
                 placeholder="Ex: 50000"
                 className="w-full border border-gray-300 rounded-3xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -245,7 +230,7 @@ function PostJobForm() {
                 type="number"
                 id="salary-max"
                 value={salaryMax}
-                onChange={(e) => setSalaryMax(e.target.value)}
+                onChange={(e) => setSalaryMax(Number(e.target.value))}
                 placeholder="Ex: 100000"
                 className="w-full border border-gray-300 rounded-3xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               />

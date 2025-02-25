@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AiOutlineEllipsis, AiOutlineEdit, AiOutlineDelete } from 'react-icons/ai';
 import { db } from '../firebase';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { toast } from "react-hot-toast";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ManageAccountsTable = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -11,6 +12,8 @@ const ManageAccountsTable = () => {
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [accountToDelete, setAccountToDelete] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingAccount, setEditingAccount] = useState(null);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -32,52 +35,146 @@ const ManageAccountsTable = () => {
 
     const filteredAccounts = accounts.filter((account) =>
         account.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        account.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        account.contact_person_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleActionClick = (account) => {
         setSelectedAccount(selectedAccount && selectedAccount.id === account.id ? null : account);
     };
 
-    const handleUpdate = () => alert('Update functionality goes here');
-    
+    const handleEditClick = (account) => {
+        setEditingAccount({ ...account });
+        setIsEditModalOpen(true);
+        setSelectedAccount(null);
+    };
+
     const handleDeleteClick = (account) => {
         setAccountToDelete(account);
         setIsDeleteConfirmOpen(true);
+        setSelectedAccount(null);
     };
 
     const confirmDelete = async () => {
-        if (accountToDelete) {
+        if (!accountToDelete) return;
+
+        const deletePromise = new Promise(async (resolve, reject) => {
             try {
-                await deleteDoc(doc(db, 'employers', accountToDelete.id));
+                await deleteDoc(doc(db, "employers", accountToDelete.id));
                 setAccounts(accounts.filter(acc => acc.id !== accountToDelete.id));
                 setIsDeleteConfirmOpen(false);
                 setAccountToDelete(null);
-                toast.success('Deleted successfully!', {
-                    position: "top-right",
-                    autoClose: 1500,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: false,
-                    draggable: false,
-                });
+                resolve("The employer account has been successfully deleted!");
             } catch (error) {
-                console.error('Error deleting:  ', error);
-                toast.error('Error deleting.', {
-                    position: "top-right",
-                    autoClose: 1500,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: false,
-                    draggable: false,
-                });
+                console.error("Error deleting: ", error);
+                reject("Failed to delete the employer account. Please try again.");
             }
-        }
+        });
+
+        toast.promise(deletePromise, {
+            loading: "Deleting the account, please wait...",
+            success: "Deleted successfully!",
+            error: "Error deleting.",
+        });
     };
 
     const cancelDelete = () => {
         setIsDeleteConfirmOpen(false);
         setAccountToDelete(null);
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditingAccount(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmitEdit = async (e) => {
+        e.preventDefault();
+
+        const updatePromise = new Promise(async (resolve, reject) => {
+            try {
+                const accountRef = doc(db, "employers", editingAccount.id);
+                await updateDoc(accountRef, {
+                    contact_person_name: editingAccount.contact_person_name,
+                    contact_person_email: editingAccount.contact_person_email,
+                    company_address: editingAccount.company_address,
+                });
+
+                // Update local state
+                setAccounts(accounts.map(acc =>
+                    acc.id === editingAccount.id ? { ...acc, ...editingAccount } : acc
+                ));
+
+                setIsEditModalOpen(false);
+                resolve("Updated successfully!");
+            } catch (error) {
+                console.error("Error updating account:", error);
+                reject("Error updating account.");
+            }
+        });
+
+        toast.promise(updatePromise, {
+            loading: "Updating account, please wait...",
+            success: "Updated successfully!",
+            error: "Error updating account.",
+        });
+    };
+
+    const truncateText = (text, maxLength = 30) => {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    };
+
+    const handleExportPDF = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginX = 10;
+
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Employer Accounts Report', pageWidth / 2, 20, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: 'center' });
+
+        const headers = [['Company Name', 'Email', 'Contact Person', 'Contact Email', 'Address', 'Verified']];
+        const tableData = accounts.map(acc => [
+            acc.companyName || 'N/A',
+            acc.email || 'N/A',
+            acc.contact_person_name || 'N/A',
+            acc.contact_person_email || 'N/A',
+            acc.company_address || 'N/A',
+            acc.verified ? 'Yes' : 'No'
+        ]);
+
+        doc.autoTable({
+            head: headers,
+            body: tableData,
+            startY: 35,
+            tableWidth: 'auto',
+            styles: {
+                fontSize: 7,
+                cellPadding: 3,
+                overflow: 'linebreak'
+            },
+            headStyles: {
+                fillColor: [52, 73, 94],
+                textColor: 255,
+                fontSize: 8,
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            },
+            margin: { left: marginX, right: marginX, top: 35 }
+        });
+
+
+        window.open(doc.output('bloburl'), '_blank');
     };
 
     useEffect(() => {
@@ -95,21 +192,24 @@ const ManageAccountsTable = () => {
 
     return (
         <div className="py-10 px-4 sm:px-6 lg:px-10">
-            <ToastContainer />
             <div className="max-w-8xl mx-auto py-4">
                 <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Manage Employers</h1>
                     <div className="flex space-x-2">
                         <input
                             type="text"
-                            placeholder="Search by Company or Email..."
+                            placeholder="Search by Company, Email or Contact Person..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="border border-gray-300 px-4 py-2 rounded-3xl text-sm"
+                            className="border border-gray-300 px-4 py-2 rounded-3xl text-sm w-64 md:w-80"
                         />
-                        <button className="bg-green-600 text-white hover:bg-green-700 py-2 px-4 rounded-full text-sm font-semibold">
+                        <button
+                            onClick={handleExportPDF}
+                            className="bg-green-600 text-white hover:bg-green-700 py-2 px-4 rounded-full text-sm font-semibold"
+                        >
                             Export PDF
                         </button>
+
                     </div>
                 </div>
             </div>
@@ -121,17 +221,44 @@ const ManageAccountsTable = () => {
                             <tr className="bg-gray-300">
                                 <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t rounded-tl-xl">Company Name</th>
                                 <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Email</th>
+                                <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Contact Person</th>
+                                <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Contact Email</th>
+                                <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Address</th>
+                                <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Permit</th>
                                 <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t">Verified</th>
                                 <th className="px-3 py-3 text-left text-sm font-semibold text-black border-t rounded-tr-xl">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredAccounts.map((account, index) => (
-                                <tr key={account.id || index} className="border-b border-gray-200">
+                                <tr key={account.id || index} className="border-b border-gray-200 hover:bg-gray-50">
                                     <td className="px-3 py-4 text-sm text-gray-700">{account.companyName}</td>
                                     <td className="px-3 py-4 text-sm text-gray-700">{account.email}</td>
+                                    <td className="px-3 py-4 text-sm text-gray-700">{account.contact_person_name || '-'}</td>
+                                    <td className="px-3 py-4 text-sm text-gray-700">{truncateText(account.contact_person_email) || '-'}</td>
+                                    <td className="px-3 py-4 text-sm text-gray-700">{truncateText(account.company_address) || '-'}</td>
                                     <td className="px-3 py-4 text-sm text-gray-700">
-                                        {account.verified ? '✔️ Yes' : '❌ No'}
+                                        {account.business_permit ? (
+                                            <a
+                                                href={account.business_permit}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                            >
+                                                View
+                                            </a>
+                                        ) : '-'}
+                                    </td>
+                                    <td className="px-3 py-4 text-sm text-gray-700">
+                                        {account.verified ? (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                Verified
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                Unverified
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-3 py-4 text-3xl text-gray-700 relative">
                                         <button
@@ -146,7 +273,7 @@ const ManageAccountsTable = () => {
                                                 className="absolute bg-white border shadow-md mt-2 top-5 rounded-md py-2 w-28 right-1 z-10"
                                             >
                                                 <button
-                                                    onClick={handleUpdate}
+                                                    onClick={() => handleEditClick(account)}
                                                     className="flex items-center w-full text-sm text-gray-700 hover:bg-gray-100 py-2 px-4"
                                                 >
                                                     <AiOutlineEdit className="mr-2" />
@@ -169,6 +296,7 @@ const ManageAccountsTable = () => {
                 </div>
             </div>
 
+            {/* Delete Confirmation Modal */}
             {isDeleteConfirmOpen && (
                 <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
                     <div className="bg-white rounded-lg shadow-lg p-6 w-96 sm:w-80 md:w-96 lg:w-1/5">
@@ -183,6 +311,144 @@ const ManageAccountsTable = () => {
                                 Cancel
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {isEditModalOpen && editingAccount && (
+                <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl mx-4">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                            Edit Employer Details
+                        </h3>
+                        <form onSubmit={handleSubmitEdit}>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Company Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="companyName"
+                                        value={editingAccount.companyName || ''}
+                                        readOnly
+                                        className="w-full px-3 py-2 border bg-gray-50 text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={editingAccount.email || ''}
+                                        readOnly
+                                        className="w-full px-3 py-2 border bg-gray-50 text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                    {editingAccount.email && (
+                                        <div className="mt-2">
+                                            <a
+                                                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${editingAccount.email}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 text-sm"
+                                            >
+                                                Send Email
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Contact Person Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="contact_person_name"
+                                        value={editingAccount.contact_person_name || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Contact Person Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="contact_person_email"
+                                        value={editingAccount.contact_person_email || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                    {editingAccount.contact_person_email && (
+                                        <div className="mt-2">
+                                            <a
+                                                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${editingAccount.contact_person_email}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 text-sm"
+                                            >
+                                                Send Email
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Company Address
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="company_address"
+                                        value={editingAccount.company_address || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Business Permit URL
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="business_permit"
+                                        value={editingAccount.business_permit || ''}
+                                        readOnly
+                                        className="w-full px-3 py-2 border bg-gray-50 text-gray-600 cursor-default border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                    {editingAccount.business_permit && (
+                                        <div className="mt-2">
+                                            <a
+                                                href={editingAccount.business_permit}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 text-sm"
+                                            >
+                                                View Current Permit
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

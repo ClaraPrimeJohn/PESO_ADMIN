@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { CiInboxOut } from "react-icons/ci";
 import { ClipLoader } from "react-spinners";
 import { isProfileComplete } from "../utils/profileValidation";
@@ -71,24 +71,14 @@ function PostJobForm() {
 
     if (isProfileIncomplete) {
       toast.error("Please complete your profile before posting a job", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
       return;
     }
 
     if (!company || !jobTitle || !jobDescription || !location || !logo) {
       toast.error("All fields are required!", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
       return;
     }
@@ -112,29 +102,28 @@ function PostJobForm() {
         logoUrl = cloudinaryResponse.data.secure_url;
       }
 
-      // Add job to Firestore
+      const storedEmployer = JSON.parse(localStorage.getItem("employer"));
+      const employerUid = storedEmployer?.uid || null;
+
       await addDoc(collection(db, "jobs"), {
+        employerUid,
         company,
         job_title: jobTitle,
         job_description: jobDescription,
         job_category: jobCategory,
         job_type: jobType,
         location,
-        salary_min: salaryMin,
-        salary_max: salaryMax,
+        salary_min: Number(salaryMin),
+        salary_max: Number(salaryMax),
         skills,
         experience,
         logo: logoUrl,
+        isOpen: true,
         date_posted: serverTimestamp(),
       });
 
       toast.success("Job posted!", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
 
       setJobTitle("");
@@ -151,17 +140,14 @@ function PostJobForm() {
     } catch (error) {
       console.error("Error posting job:", error);
       toast.error("Failed to post the job.", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
     } finally {
       setLoading(false);
     }
   };
+
+
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-10">
@@ -265,7 +251,7 @@ function PostJobForm() {
                 type="number"
                 id="salary-min"
                 value={salaryMin}
-                onChange={(e) => setSalaryMin(e.target.value)}
+                onChange={(e) => setSalaryMin(Number(e.target.value))}
                 placeholder="Ex: 50000"
                 className="w-full border border-gray-300 rounded-3xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -279,7 +265,7 @@ function PostJobForm() {
                 type="number"
                 id="salary-max"
                 value={salaryMax}
-                onChange={(e) => setSalaryMax(e.target.value)}
+                onChange={(e) => setSalaryMax(Number(e.target.value))}
                 placeholder="Ex: 100000"
                 className="w-full border border-gray-300 rounded-3xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -349,10 +335,10 @@ function PostJobForm() {
               type="submit"
               disabled={loading || isProfileIncomplete}
               className={`w-full ${loading
-                  ? "bg-blue-700"
-                  : isProfileIncomplete
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600"
+                ? "bg-blue-700"
+                : isProfileIncomplete
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-green-500 hover:bg-green-600"
                 } text-white font-medium py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
             >
               {loading ? (

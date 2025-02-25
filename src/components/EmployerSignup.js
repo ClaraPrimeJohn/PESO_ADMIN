@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { toast } from "react-toastify";
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useNavigate, Link } from "react-router-dom";
-import "react-toastify/dist/ReactToastify.css";
 import { ClipLoader } from "react-spinners";
+import { toast } from "react-hot-toast";
 
 function EmployerSignup() {
     const [companyName, setCompanyName] = useState("");
@@ -14,47 +13,69 @@ function EmployerSignup() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
+    const checkIfEmployerExists = async (companyName, email) => {
+        const q = query(
+            collection(db, "employers"),
+            where("companyName", "==", companyName),
+        );
+        const q2 = query(
+            collection(db, "employers"),
+            where("email", "==", email),
+        );
+
+        const nameSnapshot = await getDocs(q);
+        const emailSnapshot = await getDocs(q2);
+
+        if (!nameSnapshot.empty) {
+            return { exists: true, field: "Company Name" };
+        }
+        if (!emailSnapshot.empty) {
+            return { exists: true, field: "Email Address" };
+        }
+        return { exists: false };
+    };
+
     const handleSignup = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-           
-            await sendEmailVerification(user);
-      
-            await setDoc(doc(db, "employers", user.uid), {
-                companyName,
-                email,
-                uid: user.uid,
-                verified: false,  
-            });
+        const signupPromise = new Promise(async (resolve, reject) => {
+            try {
+                const existingEmployer = await checkIfEmployerExists(companyName, email);
+                if (existingEmployer.exists) {
+                    reject(`${existingEmployer.field} is already in use.`);
+                    return;
+                }
 
-            toast.success("Account created! Check your email to verify.", {
-                position: "top-right",
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: false,
-                draggable: false,
-            });
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-            navigate("/"); 
-        } catch (error) {
-            console.error("Error signing up:", error);
-            toast.error(error.message, {
-                position: "top-right",
-                autoClose: 1500,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: false,
-                draggable: false,
-            });
-        } finally {
-            setLoading(false);
-        }
+                await sendEmailVerification(user);
+
+                await setDoc(doc(db, "employers", user.uid), {
+                    companyName,
+                    email,
+                    uid: user.uid,
+                    verified: false,
+                });
+
+                resolve("Account created! Check your email to verify.");
+                navigate("/");
+            } catch (error) {
+                console.error("Error signing up:", error);
+                reject(error.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        toast.promise(signupPromise, {
+            loading: "Creating account...",
+            success: "Account created! Check your email to verify.", 
+            error: (err) => err, 
+        });
     };
+
 
     return (
         <div className="flex justify-center items-center min-h-screen bg-green-50">

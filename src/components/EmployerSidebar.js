@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from "react-hot-toast";
 import {
   CiViewList,
   CiSquarePlus,
@@ -19,7 +18,6 @@ const EmployerSidebar = () => {
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
 
-  // Function to load employer data
   const loadEmployerData = () => {
     const employerInfo = JSON.parse(localStorage.getItem('employer') || '{}');
     setCompanyName(employerInfo.companyName || 'Company Name');
@@ -52,17 +50,12 @@ const EmployerSidebar = () => {
 
   const confirmLogout = () => {
     localStorage.removeItem('employer');
-    
+
     setIsLogoutConfirmOpen(false);
     navigate('/');
     setTimeout(() => {
       toast.success('Logged out!', {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: false,
+        duration: 2000,
       });
     }, 500);
   };

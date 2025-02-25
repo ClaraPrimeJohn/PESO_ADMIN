@@ -23,7 +23,7 @@ const EditJobsModal = ({ job, isOpen, onClose, onSave }) => {
             setSalaryMin(job.salaryMin || "");
             setSalaryMax(job.salaryMax || "");
             setJobType(job.jobType || "");
-            setExperience(job.status || "");
+            setExperience(job.experience || "");
         }
     }, [job]);
 

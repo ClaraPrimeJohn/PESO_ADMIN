@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import { toast } from "react-toastify";
-import { ClipLoader } from "react-spinners"; 
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-hot-toast";
+import { ClipLoader } from "react-spinners";
 
 function PostAnnouncementForm() {
   const [title, setTitle] = useState("");
@@ -15,14 +14,16 @@ function PostAnnouncementForm() {
     e.preventDefault();
 
     const trimmedDescription = description.trim();
-    
+
     if (!title.trim() || !trimmedDescription || !location.trim()) {
-      toast.error("All fields are required!");
+      toast.error("All fields are required!", {
+        duration: 2000,
+      });
       return;
     }
-  
+
     setLoading(true);
-  
+
     try {
       await addDoc(collection(db, "announcements"), {
         title: title.trim(),
@@ -30,28 +31,18 @@ function PostAnnouncementForm() {
         location: location.trim(),
         date: serverTimestamp(),
       });
-  
+
       toast.success("Posted successfully!", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
-  
+
       setTitle("");
       setDescription("");
       setLocation("");
     } catch (error) {
       console.error("Error posting", error);
       toast.error("Failed to post.", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
+        duration: 2000,
       });
     } finally {
       setLoading(false);

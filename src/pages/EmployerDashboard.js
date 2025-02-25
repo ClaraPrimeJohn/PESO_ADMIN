@@ -1,12 +1,12 @@
 import React from 'react'
-import DashboardCard from '../components/DashboardCard';
+import EmployerDashboardCard from '../components/EmployerDashboardCard';
 import JobDashboard from '../components/JobDashboard';
 
 const EmployerDashboard = () => {
   return (
     <div className="h-screen flex flex-col bg-green-50 overflow-hidden corner-radius">
       <div className="flex-1 overflow-y-scroll ">
-          <DashboardCard />
+          <EmployerDashboardCard />
           <JobDashboard />
       </div>
     </div>

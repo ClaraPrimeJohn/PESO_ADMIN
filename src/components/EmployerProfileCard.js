@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CiCamera, CiFileOn, CiCloudOn } from "react-icons/ci";
 import LogoUser from '../assets/user.png';
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-hot-toast";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import axios from "axios";
@@ -74,7 +73,6 @@ const EmployerProfileCard = () => {
                 }
             } catch (error) {
                 console.error("Error fetching employer data:", error);
-                toast.error("Error loading profile data");
             }
         };
 
@@ -100,12 +98,7 @@ const EmployerProfileCard = () => {
         } catch (error) {
             console.error("Error uploading file to Cloudinary:", error);
             toast.error("Failed to upload file. Please try again.", {
-                position: "top-right",
-                autoClose: 1500,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: false,
-                draggable: true,
+                duration: 2000,
             });
             return "";
         }
@@ -124,13 +117,9 @@ const EmployerProfileCard = () => {
                 currentFileName = decodeURIComponent(urlParts[urlParts.length - 1].split("?")[0]);
 
                 if (file.name === currentFileName) {
-                    toast.warn("This file is already uploaded.", {
-                        position: "top-right",
-                        autoClose: 1500,
-                        hideProgressBar: false,
-                        closeOnClick: true,
-                        pauseOnHover: false,
-                        draggable: true,
+                    toast("This file is already uploaded.", {
+                        duration: 2000,
+                        icon: "⚠️",
                     });
 
                     e.target.value = null;
@@ -171,55 +160,50 @@ const EmployerProfileCard = () => {
     };
 
     const handleSaveProfile = async () => {
-        try {
-            if (selectedFiles.companyLogo) {
-                employer.companyLogo = await uploadFileToCloudinary(selectedFiles.companyLogo, "company-logo");
+        const saveProfilePromise = new Promise(async (resolve, reject) => {
+            try {
+                if (selectedFiles.companyLogo) {
+                    employer.companyLogo = await uploadFileToCloudinary(selectedFiles.companyLogo, "company-logo");
+                }
+                if (selectedFiles.businessPermit) {
+                    employer.businessPermit = await uploadFileToCloudinary(selectedFiles.businessPermit, "permits");
+                }
+
+                const formattedEmployer = {
+                    uid: employer.uid,
+                    email: employer.email,
+                    companyName: employer.companyName,
+                    company_address: employer.companyAddress,
+                    company_description: employer.companyDescription,
+                    company_phone: employer.companyPhone,
+                    contact_person_name: employer.contactPersonName,
+                    contact_person_email: employer.contactPersonEmail,
+                    linkedin_profile: employer.linkedinProfile,
+                    business_permit: employer.businessPermit,
+                    company_logo: employer.companyLogo,
+                };
+
+                const employerRef = doc(db, "employers", employer.uid);
+                await setDoc(employerRef, formattedEmployer, { merge: true });
+
+                setOriginalEmployer(employer);
+                localStorage.setItem("employer", JSON.stringify(employer));
+                setIsChanged(false);
+
+                resolve("Profile saved successfully!");
+            } catch (error) {
+                console.error("Error saving profile:", error);
+                reject("Failed to save profile. Please try again.");
             }
-            if (selectedFiles.businessPermit) {
-                employer.businessPermit = await uploadFileToCloudinary(selectedFiles.businessPermit, "permits");
-            }
+        });
 
-            const formattedEmployer = {
-                uid: employer.uid,
-                email: employer.email,
-                companyName: employer.companyName,
-                company_address: employer.companyAddress,
-                company_description: employer.companyDescription,
-                company_phone: employer.companyPhone,
-                contact_person_name: employer.contactPersonName,
-                contact_person_email: employer.contactPersonEmail,
-                linkedin_profile: employer.linkedinProfile,
-                business_permit: employer.businessPermit,
-                company_logo: employer.companyLogo,
-            };
-
-            const employerRef = doc(db, "employers", employer.uid);
-            await setDoc(employerRef, formattedEmployer, { merge: true });
-
-            setOriginalEmployer(employer);
-            localStorage.setItem("employer", JSON.stringify(employer));
-            setIsChanged(false);
-
-            toast.success("Profile saved!", {
-                position: "top-right",
-                autoClose: 1500,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: false,
-                draggable: true,
-            });
-        } catch (error) {
-            console.error("Error saving profile:", error);
-            toast.error("Failed to save profile. Please try again.", {
-                position: "top-right",
-                autoClose: 1500,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: false,
-                draggable: true,
-            });
-        }
+        toast.promise(saveProfilePromise, {
+            loading: "Saving profile...",
+            success: "Profile saved successfully!",
+            error: "Failed to save profile. Please try again.",
+        });
     };
+
 
     return (
         <div className="px-2 py-12 sm:px-4 md:px-6 lg:px-8 w-full mx-auto space-y-6">

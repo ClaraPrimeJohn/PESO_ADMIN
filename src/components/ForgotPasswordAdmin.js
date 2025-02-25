@@ -1,10 +1,10 @@
 import { useState } from "react";
+import { auth, db } from "../firebase";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 import { FaEnvelope, FaLock } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { auth } from "../firebase"; 
-import { sendPasswordResetEmail } from "firebase/auth";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"; 
 
 function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -15,21 +15,35 @@ function ForgotPassword() {
         setLoading(true);
 
         try {
-            await sendPasswordResetEmail(auth, email);
-            toast.success("Password reset link sent! Check your email.", { position: "top-center", autoClose: 3000 });
-            setEmail(""); 
+            const q = query(collection(db, "employers"), where("email", "==", email));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                toast.error("No account found with this email. Please sign up first.", {
+                    duration: 2000,
+                });
+            } else {
+                await sendPasswordResetEmail(auth, email);
+                toast.success(`Password reset link sent to ${email}. Check your inbox.`, {
+                    duration: 2000,
+                });
+                setEmail("");
+            }
         } catch (error) {
-            toast.error("Error: " + error.message, { position: "top-center", autoClose: 3000 });
+            toast.error("Error: " + error.message, {
+                duration: 2000,
+            });
         }
 
         setLoading(false);
     };
+    
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md sm:w-2/3 md:w-1/2 lg:w-1/3">
+        <div className="flex items-center justify-center min-h-screen bg-green-50">
+            <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md sm:w-2/3 md:w-1/2 lg:w-1/3">
                 <Link to="/login" className="flex items-center text-gray-600 hover:text-blue-600 mb-4">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path>
                     </svg>
                     Back to Login
@@ -52,7 +66,7 @@ function ForgotPassword() {
                         <input
                             type="email"
                             placeholder="Enter your email"
-                            className="w-full pl-10 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -61,7 +75,7 @@ function ForgotPassword() {
 
                     <button
                         type="submit"
-                        className="w-full mt-4 bg-blue-500 text-white p-3 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-all disabled:bg-gray-400"
+                        className="w-full mt-4 bg-blue-500 text-white p-2 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-all disabled:bg-gray-400"
                         disabled={loading}
                     >
                         {loading ? "Sending..." : <><FaEnvelope className="mr-2" /> Send Reset Link</>}
